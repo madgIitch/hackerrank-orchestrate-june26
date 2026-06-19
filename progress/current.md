@@ -1,11 +1,11 @@
 # Sesion actual
 
-Feature: **1 - setup_data_profiling** - estado: `review_pending`.
+Feature: **2 - io_data_layer** - estado: `review_pending`.
 
 - agente: Codex
 - rama: `main`
-- verificaciones: `python code/main.py`, `python code/evaluation/main.py`, `pytest`
+- verificaciones: `pytest`
 
 ## Siguiente accion
 
-- Revisar el diff de la feature y cerrar con `node .harness/spec.mjs done 1` si queda aceptada.
+- Revisar el diff de la feature y cerrar con `node .harness/spec.mjs done 2` si queda aceptada.

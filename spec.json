@@ -81,7 +81,7 @@
       ],
       "priority": "P0",
       "sdd": true,
-      "status": "spec_ready",
+      "status": "review_pending",
       "answers_hash": "sha256:abb2a306c18733bba2d022890a55c9a389691454e9712af79dabe8923ab3859c",
       "spec_approved": true,
       "approved_by": "peorr",
