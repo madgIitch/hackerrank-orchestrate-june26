@@ -15,3 +15,9 @@
 
 ## 2026-06-19T12:00:00.000Z — #4 decision_logic_prompting → review_pending
 - 1 intento(s) · agente claude
+
+## 2026-06-19T18:10:00Z - #5 evidence_and_risk_rules -> review_pending
+
+- Implementada capa determinista de evidence/risk rules y tests unitarios.
+- Verificaciones: `python -m pytest tests/ -q` (50 passed), `python -m py_compile code/evidence_rules.py code/pipeline.py code/evaluation/main.py`.
+- Gate completo: tests OK; `diff-scope` bloqueado por cambios previos fuera de scope (`code/run_single_claim.py`, `evaluation/data_profile.md`).

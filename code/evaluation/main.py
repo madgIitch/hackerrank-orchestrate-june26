@@ -61,12 +61,17 @@ def _run_pipeline_on_sample(prompt_version: str) -> list[dict[str, str]]:
     claims = ClaimLoader(SAMPLE_CLAIMS_PATH).load()
     histories = UserHistoryLoader(USER_HISTORY_PATH).load()
     enriched = enrich_claims(claims, histories)
+    total = len(enriched)
 
     results = []
-    for item in enriched:
+    for i, item in enumerate(enriched, start=1):
+        print(f"  [{i}/{total}] {item.claim.user_id} ({item.claim.claim_object}) ...", end=" ", flush=True)
         row = pipeline.process_claim(item.claim, item.history)
         row["_prompt_version"] = prompt_version
         results.append(row)
+        status = row.get("claim_status", "?")
+        errors = f" ⚠ {len(pipeline.log.errors)} errors" if pipeline.log.errors else ""
+        print(f"{status}{errors}")
     return results
 
 
@@ -87,6 +92,40 @@ def _accuracy(predictions: list[dict], ground_truth: dict[str, dict], field: str
         total += 1
     acc = correct / total if total else 0.0
     return acc, dict(confusion)
+
+
+def _evidence_diagnostics(results: list[dict], ground_truth: dict[str, dict]) -> list[str]:
+    evidence_counts = Counter((row.get("evidence_standard_met") or "").strip().lower() for row in results)
+    risk_counts: Counter[str] = Counter()
+    for row in results:
+        raw_flags = row.get("risk_flags", "none")
+        flags = [flag.strip() for flag in raw_flags.split(";") if flag.strip() and flag.strip() != "none"]
+        if flags:
+            risk_counts.update(flags)
+        else:
+            risk_counts["none"] += 1
+
+    invalid_images = sum(1 for row in results if row.get("valid_image") == "false")
+    total = len(results)
+    lines = [
+        "### evidence/risk diagnostics",
+        "- evidence_standard_met distribution:",
+    ]
+    for value, count in sorted(evidence_counts.items()):
+        pct = count / total if total else 0
+        lines.append(f"  - {value or '<empty>'}: {count} ({pct:.1%})")
+    lines.append("- risk_flags frequency:")
+    for flag, count in sorted(risk_counts.items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"  - {flag}: {count}")
+    invalid_pct = invalid_images / total if total else 0
+    lines.append(f"- valid_image=false ratio: {invalid_images}/{total} ({invalid_pct:.1%})")
+
+    comparable_fields = [field for field in ("evidence_standard_met", "risk_flags", "valid_image") if any(field in row for row in ground_truth.values())]
+    if comparable_fields:
+        lines.append(f"- Ground-truth comparable fields present: {', '.join(comparable_fields)}.")
+    else:
+        lines.append("- Ground-truth comparison: diagnostic only; sample labels do not include evidence/risk fields.")
+    return lines
 
 
 def _write_report(v1_results: list[dict] | None, v2_results: list[dict], ground_truth: dict) -> None:
@@ -127,6 +166,8 @@ def _write_report(v1_results: list[dict] | None, v2_results: list[dict], ground_
             f"- supported rows with supporting_image_ids=none (incoherent): {supporting_mismatch}",
             "",
         ]
+        lines += _evidence_diagnostics(results, ground_truth)
+        lines.append("")
 
     if v1_results and v2_results:
         v1_acc, _ = _accuracy(v1_results, ground_truth, "claim_status")

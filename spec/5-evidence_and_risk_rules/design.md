@@ -6,11 +6,14 @@
 - `code/parser_validator.py`
 - `code/pipeline.py`
 - `code/schema.py`
+- `code/evaluation/main.py`
 - `tests/test_evidence_rules.py`
+- `tests/test_pipeline.py`
 - `tests/test_parser_validator.py`
 - `evaluation/evaluation_report.md`
 - `docs/ARCHITECTURE.md`
 - `docs/DECISIONS.md`
+- `spec.json`
 - `spec/**`
 - `progress/**`
 
@@ -35,4 +38,3 @@
 - **edge_cases:** valid_image debe ser true si al menos una imagen nitida, relevante y usable muestra el objeto o la pieza reclamada con suficiente contexto para revisar la condicion. En sets multi-imagen, los risk_flags visuales se emiten aunque solo afecten a parte del set, pero no fuerzan valid_image=false si queda al menos una imagen usable para la pieza reclamada. valid_image=false solo cuando ninguna imagen cargada permite evaluar el objeto/parte reclamada, o cuando todas las imagenes relevantes estan inutilizables, son del objeto equivocado o no muestran la parte/dano necesario.
 - **rollback_compat:** Añadir un modulo nuevo code/evidence_rules.py con funciones puras y llamarlo desde pipeline.py como post-proceso despues de la normalizacion/validacion existente. parser_validator.py solo debe extenderse si hace falta conectar la normalizacion con estas reglas, no como lugar principal de la logica. Los tests existentes pueden actualizarse cuando el nuevo comportamiento este documentado, pero deben conservar cobertura de fallback, enums, degradacion de claim_status, supporting_image_ids validos y escritura a tmp_path.
 - **tests:** Los tests principales deben ser unitarios puros y deterministas, sin modelo real: entradas estructuradas con requirements, decision normalizada del modelo, image_ids validos, señales visuales/risk_flags e historial; salidas esperadas para evidence_standard_met, valid_image y risk_flags. Añadir tambien tests de integracion con pipeline usando mock del modelo para verificar que el post-proceso se aplica. Las metricas de sample se documentan en evaluation/evaluation_report.md existente, no en un artefacto nuevo, incluyendo distribucion de evidence_standard_met, frecuencia de risk_flags y ratio de valid_image.
-

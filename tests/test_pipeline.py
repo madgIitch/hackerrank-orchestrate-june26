@@ -209,7 +209,8 @@ def test_partial_missing_image_continues_and_marks_manual_review(pipeline_factor
 
     assert row["claim_status"] == "supported"
     assert "manual_review_required" in row["risk_flags"]
-    assert row["evidence_standard_met"] == "false"
+    assert row["valid_image"] == "true"
+    assert row["evidence_standard_met"] == "true"
     assert "Partial image set" in row["evidence_standard_met_reason"]
 
 
