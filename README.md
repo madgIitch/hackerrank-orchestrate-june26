@@ -108,6 +108,20 @@ cd hackerrank-orchestrate-june26
 
 You are free to use any language or runtime. Python, JavaScript, and TypeScript are all reasonable choices.
 
+For the current Python setup, generate the dataset profile with:
+
+```bash
+python code/main.py
+```
+
+Run the contract tests with:
+
+```bash
+pytest
+```
+
+The profiling step writes `evaluation/data_profile.md` with CSV row counts, detected columns, sample label distributions, and sample image path validation.
+
 ---
 
 ## Evaluation
