@@ -128,25 +128,34 @@
       "title": "Prompting y logica de decision",
       "description": "Mejorar la calidad de las decisiones para issue_type, object_part, supporting_image_ids, severity y claim_status, priorizando evidencia visual sobre historial.",
       "acceptance": [
-        "El prompt versionado extrae la reclamacion real del transcript y razona con referencias a image_id.",
-        "claim_status distingue supported, contradicted y not_enough_information con reglas explicitas.",
-        "La evidencia visual es la fuente de verdad principal y el historial no cambia claim_status por si solo.",
-        "El post-proceso fuerza not_enough_information cuando no se cumple la evidencia minima aunque el modelo intuya una respuesta.",
-        "La salida incluye justificaciones concisas ancladas en imagenes y supporting_image_ids coherentes.",
-        "La evaluacion sobre sample muestra mejora frente al baseline del pipeline vertical o documenta claramente los errores restantes."
+        "El prompt mejorado vive en prompts/system_prompt_v2.txt, conserva prompts/system_prompt.txt como baseline v1, define PROMPT_VERSION=\"v2\" en codigo y registra prompt_version en PipelineLog por cada ejecucion; la version no se anade a output.csv.",
+        "El prompt instruye al modelo a referenciar image_ids especificos en claim_status_justification y a incluir solo image_ids pertenecientes al ClaimRecord de entrada en supporting_image_ids; el post-proceso elimina IDs ajenos y fuerza not_enough_information si supported/contradicted queda sin image_id valido.",
+        "claim_status distingue supported, contradicted y not_enough_information con reglas explicitas: supported requiere evidencia visual del dano reclamado en objeto/parte correctos; contradicted requiere evidencia visual suficiente de ausencia o discrepancia verificable; not_enough_information cubre evidencia insuficiente, imagen no usable o incertidumbre.",
+        "El post-proceso fuerza claim_status=not_enough_information, evidence_standard_met=false y supporting_image_ids=none cuando evidence_standard_met normalizado es false, incluso si el modelo devuelve supported o contradicted; no usa patrones de texto de evidence_standard_met_reason como condicion logica.",
+        "pipeline.py elimina el hardcode de issue_family_for_issue_type(\"unknown\") antes de conocer issue_type e implementa un flujo de maximo dos pasadas: triage/extraccion multimodal breve, lookup de requirements exactos, y decision final con transcript, imagenes, resumen de triage, requirements e historial.",
+        "Si la primera pasada falla o devuelve issue_type/object_part inutilizables, el pipeline cae a requirements generales y la decision final debe poder devolver una fila valida not_enough_information sin abortar el batch.",
+        "La evaluacion sobre sample_claims.csv compara v2 contra el baseline v1 y reporta accuracy de claim_status como metrica primaria, mas issue_type, object_part y coherencia de supporting_image_ids; v2 debe tener claim_status accuracy mayor o igual que v1, o documentar categorias de error restantes sin empeorar issue_type/object_part frente al baseline.",
+        "Los tests existentes siguen cubriendo fallback, validacion de enums y escritura a tmp_path; pueden actualizarse solo para el comportamiento documentado. Se anaden tests unitarios deterministas sin modelo real para supported+evidence false -> not_enough_information, contradicted+evidence false -> not_enough_information, not_enough_information+evidence true se preserva, IDs ajenos se descartan, e historial no puede elevar not_enough_information a supported/contradicted.",
+        "La historia del usuario puede anadir risk_flags como user_history_risk y enriquecer claim_status_justification, pero nunca cambia claim_status por si sola; la evidencia visual mantiene precedencia sobre historial."
       ],
       "scope": [
-        "code/**",
-        "prompts/**",
-        "evaluation/**",
-        "tests/**",
-        "docs/**",
+        "prompts/system_prompt.txt",
+        "prompts/system_prompt_v2.txt",
+        "code/prompt_builder.py",
+        "code/parser_validator.py",
+        "code/pipeline.py",
+        "code/evaluation/main.py",
+        "evaluation/evaluation_report.md",
+        "tests/test_pipeline.py",
+        "tests/test_parser_validator.py",
+        "docs/ARCHITECTURE.md",
+        "docs/DECISIONS.md",
         "spec/**",
         "progress/**"
       ],
       "priority": "P1",
       "sdd": true,
-      "status": "pending"
+      "status": "spec_ready"
     },
     {
       "id": 5,
