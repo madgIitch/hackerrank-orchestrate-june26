@@ -210,22 +210,24 @@
       "title": "Refinamiento de deteccion de contradicted",
       "description": "Mejorar la precision de claim_status=contradicted, que en la evaluacion de feature 4 mostro el patron de error mas critico (contradicted predicho como supported). Introducir un post-proceso determinista que valide contradicted contra risk_flags y ejemplos few-shot en el prompt.",
       "acceptance": [
-        "El prompt v2 incorpora al menos 2 ejemplos few-shot de contradicted con imagen que muestra ausencia o discrepancia verificable del dano reclamado, y al menos 1 ejemplo de not_enough_information que un modelo ingenuo confundiria con contradicted.",
-        "El post-proceso en parser_validator.py invalida claim_status=contradicted si ningun risk_flag del conjunto {claim_mismatch, damage_not_visible, wrong_object, wrong_object_part} esta presente en el resultado, degradando a not_enough_information.",
-        "El post-proceso no afecta a supported ni a not_enough_information: solo restringe contradicted.",
-        "La evaluacion sobre sample_claims.csv muestra que contradicted→supported desaparece o se reduce a 0 casos, y la accuracy de claim_status no baja respecto al 80% de feature 4.",
-        "Los tests unitarios deterministas (sin modelo real) cubren: contradicted sin risk_flag de discrepancia → not_enough_information, contradicted con claim_mismatch → se preserva, supported con cualquier risk_flag → no cambia, not_enough_information → no cambia.",
-        "El prompt versionado pasa a system_prompt_v3.txt; system_prompt_v2.txt se conserva como baseline. PROMPT_VERSION se actualiza a v3 en codigo."
+        "system_prompt_v3.txt contiene al menos 2 ejemplos few-shot de claim_status=contradicted (texto descriptivo de situación + imagen, indicando la discrepancia verificable) y al menos 1 ejemplo de not_enough_information que un modelo sin contexto confundiría con contradicted; system_prompt_v2.txt se preserva sin modificar.",
+        "PROMPT_VERSION='v3' en código; el pipeline usa v3 por defecto tras esta feature.",
+        "El post-proceso de contradicted se ejecuta como último paso del pipeline, después de apply_history_risk_flags, operando sobre risk_flags en formato lista/set Python (no string CSV); el paso queda documentado en el orden oficial de DECISIONS.md.",
+        "El post-proceso invalida claim_status=contradicted → not_enough_information si y solo si ninguno de {claim_mismatch, damage_not_visible, wrong_object, wrong_object_part} está presente en los risk_flags finales; risk_flags=['none'] se trata como ausencia de flags de discrepancia.",
+        "El post-proceso no modifica claim_status=supported ni claim_status=not_enough_information bajo ninguna condición.",
+        "Cuando ocurre la degradación contradicted→not_enough_information por esta regla, claim_status_justification se actualiza con una nota que indica la causa (e.g., 'contradicted invalidated: no discrepancy risk_flag present').",
+        "Tests unitarios deterministas sin modelo real en tests/test_parser_validator.py cubren: (a) contradicted sin flag de discrepancia → not_enough_information, (b) contradicted + claim_mismatch → se preserva, (c) contradicted + solo blurry_image (sin flag de discrepancia) → not_enough_information, (d) contradicted + risk_flags=['none'] → not_enough_information, (e) supported + cualquier risk_flag → no cambia, (f) not_enough_information → no cambia.",
+        "La evaluación sobre sample_claims.csv documenta en evaluation_report.md: accuracy de claim_status >= 80% (igual o mejor que feature 4), cuenta de casos contradicted→supported = 0, y distribución de degradaciones contradicted→not_enough_information con y sin prompt v3.",
+        "Los tests existentes de features 3, 4 y 5 pasan sin modificación de sus aserciones de claim_status salvo actualización explícita documentada."
       ],
       "scope": [
-        "prompts/system_prompt_v2.txt",
         "prompts/system_prompt_v3.txt",
         "code/prompt_builder.py",
         "code/parser_validator.py",
         "code/pipeline.py",
-        "evaluation/evaluation_report.md",
         "tests/test_parser_validator.py",
         "tests/test_pipeline.py",
+        "evaluation/evaluation_report.md",
         "docs/ARCHITECTURE.md",
         "docs/DECISIONS.md",
         "spec/**",
@@ -233,7 +235,14 @@
       ],
       "priority": "P1",
       "sdd": true,
-      "status": "pending"
+      "status": "spec_ready",
+      "manual_spec_ready": true,
+      "manual_spec_ready_at": "2026-06-19T18:45:57.649Z",
+      "manual_spec_ready_reason": "Dev override: Fase 0 marcada como suficientemente especificada pese a suposiciones pendientes.",
+      "answers_hash": "sha256:7926f76c217bbcd39f64c4c72f23af099a0b68285692fe78fd92bccaea7909ab",
+      "spec_approved": true,
+      "approved_by": "peorr",
+      "approved_at": "2026-06-19T18:46:02.725Z"
     },
     {
       "id": 7,

@@ -75,3 +75,16 @@ Decisiones registradas:
 - **implementation:** El orden final del pipeline es merge/validate, filter_supporting_image_ids, apply_evidence_rules, apply_evidence_precedence y apply_history_risk_flags. Los flags de historial se propagan desde history_flags validos; si history_flags='none', se derivan user_history_risk con rejected_claim >= 2, last_90_days_claim_count >= 4, o manual_review_claim >= 2 con past_claim_count >= 5, y manual_review_required con rejected_claim >= 3, last_90_days_claim_count >= 5, o manual_review_claim >= 3. El historial nunca cambia claim_status ni evidence_standard_met.
 
 Consecuencia: futuras features deben respetar este contrato salvo nuevo ADR.
+
+<!-- harness:6 -->
+## 2026-06-19 · 6 aprobado
+
+Contexto: se aprobó el spec `6` (Refinamiento de deteccion de contradicted).
+
+Decisiones registradas:
+
+- **auth_secrets:** pendiente
+- **rollback_compat:** pendiente
+- **tests:** pendiente
+
+Consecuencia: futuras features deben respetar este contrato salvo nuevo ADR.

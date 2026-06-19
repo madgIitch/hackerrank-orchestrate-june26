@@ -166,3 +166,30 @@ Implementar reglas deterministas para evidence_standard_met, valid_image y risk_
 - **external_contracts:** evidence_requirements.csv y user_history.csv ya tienen loaders en feature 2 con contratos fijados. No hay nuevas APIs ni servicios externos.
 - **edge_cases:** valid_image=true si al menos una imagen nítida, relevante y usable muestra el objeto o pieza reclamada con suficiente contexto para revisar la condición. wrong_angle se trata como flag de calidad/reviewabilidad: si wrong_angle es el único problema pero otra imagen relevante permite evaluar la pieza, valid_image sigue true; si todas las imágenes relevantes tienen wrong_angle y no permiten inspeccionar la condición reclamada, valid_image=false. En sets multi-imagen, risk_flags visuales se emiten aunque afecten solo parte del set, pero no fuerzan valid_image=false si queda al menos una imagen usable para la pieza reclamada. valid_image=false solo cuando ninguna imagen cargada permite evaluar el objeto/parte reclamada. Los risk_flags multi-imagen se fusionan como unión ordenada de enums canónicos separados por punto y coma, sin prefijos por image_id; el detalle por imagen puede quedar en evidence_standard_met_reason o claim_status_justification como texto humano.
 - **ui_states:** No hay interfaz de usuario. La salida es output.csv y métricas en evaluation_report.md.
+
+<!-- harness:6 -->
+## 6 · Refinamiento de deteccion de contradicted
+
+Mejorar la precision de claim_status=contradicted, que en la evaluacion de feature 4 mostro el patron de error mas critico (contradicted predicho como supported). Introducir un post-proceso determinista que valide contradicted contra risk_flags y ejemplos few-shot en el prompt.
+
+### Scope aprobado
+
+  - `prompts/system_prompt_v3.txt`
+  - `code/prompt_builder.py`
+  - `code/parser_validator.py`
+  - `code/pipeline.py`
+  - `tests/test_parser_validator.py`
+  - `tests/test_pipeline.py`
+  - `evaluation/evaluation_report.md`
+  - `docs/ARCHITECTURE.md`
+  - `docs/DECISIONS.md`
+  - `spec/**`
+  - `progress/**`
+
+### Contexto técnico
+
+- **data_model:** pendiente
+- **external_contracts:** pendiente
+- **edge_cases:** pendiente
+- **ui_states:** pendiente
+
