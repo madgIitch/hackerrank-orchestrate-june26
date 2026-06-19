@@ -1,6 +1,6 @@
 {
   "gates": [
-    { "name": "test", "cmd": "echo 'TODO: define un comando de tests' && false", "blocking": true },
+    { "name": "test", "cmd": "python -m pytest tests/ -x -q 2>&1", "blocking": true },
     { "name": "diff-scope", "blocking": true }
   ]
 }
