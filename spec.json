@@ -116,7 +116,7 @@
       ],
       "priority": "P0",
       "sdd": true,
-      "status": "spec_ready",
+      "status": "done",
       "answers_hash": "sha256:9d3e36e300ccbb6802eccc5cf1bea9fafd66d557ea0aa039b259d5ad536d504f",
       "spec_approved": true,
       "approved_by": "peorr",
