@@ -188,6 +188,37 @@
     },
     {
       "id": 6,
+      "name": "contradicted_refinement",
+      "title": "Refinamiento de deteccion de contradicted",
+      "description": "Mejorar la precision de claim_status=contradicted, que en la evaluacion de feature 4 mostro el patron de error mas critico (contradicted predicho como supported). Introducir un post-proceso determinista que valide contradicted contra risk_flags y ejemplos few-shot en el prompt.",
+      "acceptance": [
+        "El prompt v2 incorpora al menos 2 ejemplos few-shot de contradicted con imagen que muestra ausencia o discrepancia verificable del dano reclamado, y al menos 1 ejemplo de not_enough_information que un modelo ingenuo confundiria con contradicted.",
+        "El post-proceso en parser_validator.py invalida claim_status=contradicted si ningun risk_flag del conjunto {claim_mismatch, damage_not_visible, wrong_object, wrong_object_part} esta presente en el resultado, degradando a not_enough_information.",
+        "El post-proceso no afecta a supported ni a not_enough_information: solo restringe contradicted.",
+        "La evaluacion sobre sample_claims.csv muestra que contradicted→supported desaparece o se reduce a 0 casos, y la accuracy de claim_status no baja respecto al 80% de feature 4.",
+        "Los tests unitarios deterministas (sin modelo real) cubren: contradicted sin risk_flag de discrepancia → not_enough_information, contradicted con claim_mismatch → se preserva, supported con cualquier risk_flag → no cambia, not_enough_information → no cambia.",
+        "El prompt versionado pasa a system_prompt_v3.txt; system_prompt_v2.txt se conserva como baseline. PROMPT_VERSION se actualiza a v3 en codigo."
+      ],
+      "scope": [
+        "prompts/system_prompt_v2.txt",
+        "prompts/system_prompt_v3.txt",
+        "code/prompt_builder.py",
+        "code/parser_validator.py",
+        "code/pipeline.py",
+        "evaluation/evaluation_report.md",
+        "tests/test_parser_validator.py",
+        "tests/test_pipeline.py",
+        "docs/ARCHITECTURE.md",
+        "docs/DECISIONS.md",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P1",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 7,
       "name": "evaluation_harness",
       "title": "Harness de evaluacion reproducible",
       "description": "Medir la solucion sobre sample_claims.csv campo a campo, con matriz de confusion de claim_status y registro de iteraciones.",
@@ -213,7 +244,7 @@
       "status": "pending"
     },
     {
-      "id": 7,
+      "id": 8,
       "name": "operational_report",
       "title": "Analisis operativo de coste, latencia y rate limits",
       "description": "Crear evaluation/evaluation_report.md con numeros reales del sample, extrapolacion al test y estrategia de coste, caching, throttling y retries.",
@@ -237,7 +268,7 @@
       "status": "pending"
     },
     {
-      "id": 8,
+      "id": 9,
       "name": "final_submission_package",
       "title": "Run completo y paquete de entrega",
       "description": "Ejecutar el pipeline sobre claims.csv, producir output.csv validado y empaquetar code.zip, README, evaluation y transcript.",
