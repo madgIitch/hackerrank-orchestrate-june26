@@ -138,3 +138,29 @@ Mejorar la calidad de las decisiones para issue_type, object_part, supporting_im
 - **edge_cases:** Flujo de dos pasadas máximo. Pasada 1: extracción/triage multimodal corto para identificar claim normalizada, issue_type candidato, object_part candidato, observaciones visuales e image_ids relevantes; con ese resultado se buscan los evidence_requirements exactos. Pasada 2: decisión final con transcript, imágenes, resumen de pasada 1, requisitos exactos e historial. Si la pasada 1 falla o devuelve valores inutilizables, se cae a requisitos generales y la pasada 2 debe poder producir not_enough_information. Máximo 2 llamadas por claim. El hardcode de issue_family_for_issue_type('unknown') se elimina; el flujo de dos pasadas es el mecanismo documentado en DECISIONS.md.
 - **ui_states:** No hay UI. El output sigue siendo output.csv y evaluation/evaluation_report.md. Las justificaciones son campos de texto en el CSV.
 
+<!-- harness:5 -->
+## 5 · Suficiencia de evidencia y risk flags
+
+Implementar reglas deterministas para evidence_standard_met, valid_image y risk_flags visuales y de historial.
+
+### Scope aprobado
+
+  - `code/evidence_rules.py`
+  - `code/parser_validator.py`
+  - `code/pipeline.py`
+  - `code/schema.py`
+  - `tests/test_evidence_rules.py`
+  - `tests/test_parser_validator.py`
+  - `evaluation/evaluation_report.md`
+  - `docs/ARCHITECTURE.md`
+  - `docs/DECISIONS.md`
+  - `spec/**`
+  - `progress/**`
+
+### Contexto técnico
+
+- **data_model:** Las reglas deterministas se implementan como post-proceso: el modelo aporta la decisión normalizada (evidence_standard_met, evidence_standard_met_reason, risk_flags, supporting_image_ids, valid_image, claim_status), pero la capa determinista en code/evidence_rules.py prevalece para evidence_standard_met, valid_image, risk_flags estructurales y cualquier degradación de claim_status derivada de evidencia insuficiente. No se añade model_visual_observations al contrato de 10 campos ni al output.csv; el visual_summary de feature 4 puede usarse como contexto interno/log pero no como condición basada en parsing de texto libre. La frontera es explícita: el modelo propone, las reglas corrigen si entran en conflicto con evidence_requirements.csv o el contrato de schema.py.
+- **external_contracts:** evidence_requirements.csv y user_history.csv ya tienen loaders en feature 2 con contratos fijados. No hay nuevas APIs ni servicios externos.
+- **edge_cases:** valid_image=true si al menos una imagen nítida, relevante y usable muestra el objeto o pieza reclamada con suficiente contexto para revisar la condición. wrong_angle se trata como flag de calidad/reviewabilidad: si wrong_angle es el único problema pero otra imagen relevante permite evaluar la pieza, valid_image sigue true; si todas las imágenes relevantes tienen wrong_angle y no permiten inspeccionar la condición reclamada, valid_image=false. En sets multi-imagen, risk_flags visuales se emiten aunque afecten solo parte del set, pero no fuerzan valid_image=false si queda al menos una imagen usable para la pieza reclamada. valid_image=false solo cuando ninguna imagen cargada permite evaluar el objeto/parte reclamada. Los risk_flags multi-imagen se fusionan como unión ordenada de enums canónicos separados por punto y coma, sin prefijos por image_id; el detalle por imagen puede quedar en evidence_standard_met_reason o claim_status_justification como texto humano.
+- **ui_states:** No hay interfaz de usuario. La salida es output.csv y métricas en evaluation_report.md.
+

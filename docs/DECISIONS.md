@@ -61,3 +61,16 @@ Decisiones registradas:
 - **tests:** Métrica primaria: accuracy de claim_status sobre dataset/sample_claims.csv. Métricas secundarias: accuracy de issue_type, object_part y coherencia de supporting_image_ids. El spec se cumple si la evaluación muestra mejora de claim_status frente al baseline v1, o si no mejora, documenta errores restantes con categorías accionables sin empeorar issue_type/object_part de forma material. Tests unitarios deterministas (sin modelo real) para el post-proceso de not_enough_information cubriendo al menos: modelo dice supported con evidencia insuficiente → not_enough_information; modelo dice contradicted con evidencia insuficiente → not_enough_information; modelo dice not_enough_information con evidencia suficiente → se preserva not_enough_information. Test determinista adicional: user_history_risk no puede cambiar claim_status de not_enough_information a supported o contradicted.
 
 Consecuencia: futuras features deben respetar este contrato salvo nuevo ADR.
+
+<!-- harness:5 -->
+## 2026-06-19 · 5 aprobado
+
+Contexto: se aprobó el spec `5` (Suficiencia de evidencia y risk flags).
+
+Decisiones registradas:
+
+- **auth_secrets:** La feature opera sobre CSV locales ya cargados por feature 2 y sobre output del modelo existente. No introduce nuevas dependencias externas ni credenciales.
+- **rollback_compat:** Se añade code/evidence_rules.py con funciones puras; pipeline.py lo llama como post-proceso tras la normalización/validación existente, sin alterar el orden de pasos previos. parser_validator.py solo se extiende si hace falta conectar la normalización con las reglas, no como lugar principal de la lógica. Los tests existentes de features 3/4 se actualizan para reflejar el nuevo paso post-proceso, conservando cobertura de fallback, enums, degradación de claim_status, supporting_image_ids válidos y escritura a tmp_path.
+- **tests:** Tests unitarios en tests/test_evidence_rules.py son deterministas y sin modelo real: entradas estructuradas con EvidenceLookupResult, fila normalizada del modelo, señales estructurales (supporting_image_ids filtrados, valid_image, image_errors/risk_flags) e historial; salidas esperadas para evidence_standard_met, valid_image y risk_flags. Tests de integración con pipeline usan mock del modelo para verificar que el post-proceso se aplica y prevalece. Métricas de sample se documentan en evaluation/evaluation_report.md existente (distribución de evidence_standard_met, frecuencia de cada risk_flag individual, ratio de valid_image=false comparado contra ground truth), no en artefacto nuevo.
+
+Consecuencia: futuras features deben respetar este contrato salvo nuevo ADR.
