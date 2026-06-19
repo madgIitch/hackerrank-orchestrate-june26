@@ -5,7 +5,14 @@
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
     "require_approved_spec_to_implement": true,
-    "valid_status": ["pending", "spec_ready", "in_progress", "review_pending", "done", "blocked"],
+    "valid_status": [
+      "pending",
+      "spec_ready",
+      "in_progress",
+      "review_pending",
+      "done",
+      "blocked"
+    ],
     "sdd_required_when": "feature tiene \"sdd\": true",
     "max_attempts": 3
   },
@@ -16,25 +23,33 @@
       "title": "Setup, reconocimiento de datos y esquema base",
       "description": "Preparar la estructura del proyecto, perfilar los CSV de sample, revisar imagenes de ejemplo y definir el esquema de salida con los enums permitidos como fuente de verdad.",
       "acceptance": [
-        "El repo contiene la estructura base para codigo, dataset, evaluacion, prompts y documentacion.",
-        "Existe un script o notebook de perfilado que carga sample_claims.csv, claims.csv, user_history.csv y evidence_requirements.csv.",
-        "El perfilado documenta distribucion de claim_status, claim_object e issue_type en sample_claims.csv.",
-        "Todas las rutas de image_paths del sample se validan contra ficheros existentes.",
-        "El esquema de output.csv define exactamente 14 columnas en el orden requerido.",
-        "Los enums de claim_status, issue_type, object_part por tipo de objeto, risk_flags, valid_image, evidence_standard_met y severity estan centralizados."
+        "Existe una estructura base versionada con `code/`, `code/evaluation/` cuando aplique, `evaluation/`, `prompts/` si se crean prompts, `docs/`, `tests/` y `README.md`, sin tocar `.harness/` ni mover `dataset/`.",
+        "Existe un script de perfilado ejecutable bajo `code/` que carga `dataset/sample_claims.csv`, `dataset/claims.csv`, `dataset/user_history.csv` y `dataset/evidence_requirements.csv`.",
+        "El perfilado genera o actualiza `evaluation/data_profile.md` con filas por CSV, columnas detectadas, incidencias/warnings y distribuciones de `claim_status`, `claim_object` e `issue_type` en `sample_claims.csv`.",
+        "Cada distribucion incluye conteos absolutos, porcentajes, total de filas, conteo de valores nulos/vacios y valores fuera del enum esperado, ordenados por conteo descendente y valor alfabetico en empates.",
+        "El perfilado valida todas las entradas de `image_paths` del sample contra archivos existentes y reporta claramente cualquier ruta faltante.",
+        "El contrato de `output.csv` esta documentado con exactamente 14 columnas en el orden aprobado.",
+        "Los enums aprobados para `claim_status`, `issue_type`, `object_part` por tipo de objeto, `risk_flags`, `valid_image`, `evidence_standard_met` y `severity` estan definidos en una unica fuente de verdad reutilizable.",
+        "Hay tests o comprobaciones automatizadas que verifican carga de CSV, existencia de imagenes del sample, contrato de columnas de `output.csv` y validez de enums centralizados."
       ],
       "scope": [
-        "code/**",
-        "docs/**",
+        "dataset/**",
         "evaluation/**",
         "prompts/**",
+        "code/**",
+        "docs/**",
+        "tests/**",
         "README.md",
-        "spec/**",
-        "progress/**"
+        "pyproject.toml",
+        "requirements.txt"
       ],
       "priority": "P0",
       "sdd": true,
-      "status": "pending"
+      "status": "spec_ready",
+      "answers_hash": "sha256:ab321ccedad64a13392ead10a7ac824b33770b09e5616de8b55b4ec6faf9461c",
+      "spec_approved": true,
+      "approved_by": "peorr",
+      "approved_at": "2026-06-19T09:04:51.029Z"
     },
     {
       "id": 2,
