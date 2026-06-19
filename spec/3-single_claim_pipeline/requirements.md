@@ -1,7 +1,7 @@
 # 3 · Pipeline vertical de una reclamacion — Requisitos
 
 - name: `single_claim_pipeline` · priority: P0 · sdd: true
-- aprobado por: peorr · 2026-06-19T10:00:32.178Z
+- aprobado por: peorr · 2026-06-19T10:00:53.384Z
 
 ## Contexto
 
