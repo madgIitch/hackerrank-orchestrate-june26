@@ -1,0 +1,219 @@
+{
+  "project": "hackerrank-orchestrate-june26",
+  "description": "Multi-Modal Evidence Review: sistema para verificar reclamaciones de dano combinando imagenes, conversacion del usuario, historial y requisitos minimos de evidencia, y producir output.csv mas evaluacion operativa.",
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "require_approved_spec_to_implement": true,
+    "valid_status": ["pending", "spec_ready", "in_progress", "review_pending", "done", "blocked"],
+    "sdd_required_when": "feature tiene \"sdd\": true",
+    "max_attempts": 3
+  },
+  "features": [
+    {
+      "id": 1,
+      "name": "setup_data_profiling",
+      "title": "Setup, reconocimiento de datos y esquema base",
+      "description": "Preparar la estructura del proyecto, perfilar los CSV de sample, revisar imagenes de ejemplo y definir el esquema de salida con los enums permitidos como fuente de verdad.",
+      "acceptance": [
+        "El repo contiene la estructura base para codigo, dataset, evaluacion, prompts y documentacion.",
+        "Existe un script o notebook de perfilado que carga sample_claims.csv, claims.csv, user_history.csv y evidence_requirements.csv.",
+        "El perfilado documenta distribucion de claim_status, claim_object e issue_type en sample_claims.csv.",
+        "Todas las rutas de image_paths del sample se validan contra ficheros existentes.",
+        "El esquema de output.csv define exactamente 14 columnas en el orden requerido.",
+        "Los enums de claim_status, issue_type, object_part por tipo de objeto, risk_flags, valid_image, evidence_standard_met y severity estan centralizados."
+      ],
+      "scope": [
+        "code/**",
+        "docs/**",
+        "evaluation/**",
+        "prompts/**",
+        "README.md",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P0",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "name": "io_data_layer",
+      "title": "Capa de IO y datos",
+      "description": "Construir loaders y writers deterministas para claims, historial, requisitos de evidencia, imagenes y salida CSV valida, sin depender todavia del modelo.",
+      "acceptance": [
+        "ClaimLoader parsea image_paths separados por punto y coma y deriva image_id desde el filename sin extension.",
+        "Las filas de claims se enriquecen con user_history por user_id y manejan usuarios sin historial.",
+        "EvidenceRequirements permite lookup por claim_object y familia de issue, con fallback a reglas all cuando aplique.",
+        "ImageLoader carga imagenes, normaliza tamano cuando sea necesario y genera payloads aptos para el modelo.",
+        "OutputWriter escribe CSV con las 14 columnas en orden estricto y rechaza o corrige valores fuera de enum segun la politica definida.",
+        "Los tests cubren round-trip de una fila stub, usuario sin historial, claims con una imagen y claims con multiples imagenes."
+      ],
+      "scope": [
+        "code/**",
+        "tests/**",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P0",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "name": "single_claim_pipeline",
+      "title": "Pipeline vertical de una reclamacion",
+      "description": "Procesar una claim real de punta a punta mediante analisis multimodal, salida JSON estricta, validacion y fila de output valida.",
+      "acceptance": [
+        "Existe un prompt de sistema con esquema, enums y requisitos de evidencia relevantes.",
+        "El prompt de usuario incluye imagenes, transcript y claim_object para una sola claim.",
+        "La respuesta del modelo se fuerza a JSON estricto sin markdown ni preambulos.",
+        "Un parser/validador valida el JSON y degrada valores invalidos a unknown, none o el fallback especificado.",
+        "Una claim de cada tipo de objeto (car, laptop, package) genera una fila que pasa validacion de esquema sin intervencion manual.",
+        "Las credenciales de modelo se leen solo desde variables de entorno y nunca se guardan en el repo."
+      ],
+      "scope": [
+        "code/**",
+        "prompts/**",
+        "tests/**",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P0",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "name": "decision_logic_prompting",
+      "title": "Prompting y logica de decision",
+      "description": "Mejorar la calidad de las decisiones para issue_type, object_part, supporting_image_ids, severity y claim_status, priorizando evidencia visual sobre historial.",
+      "acceptance": [
+        "El prompt versionado extrae la reclamacion real del transcript y razona con referencias a image_id.",
+        "claim_status distingue supported, contradicted y not_enough_information con reglas explicitas.",
+        "La evidencia visual es la fuente de verdad principal y el historial no cambia claim_status por si solo.",
+        "El post-proceso fuerza not_enough_information cuando no se cumple la evidencia minima aunque el modelo intuya una respuesta.",
+        "La salida incluye justificaciones concisas ancladas en imagenes y supporting_image_ids coherentes.",
+        "La evaluacion sobre sample muestra mejora frente al baseline del pipeline vertical o documenta claramente los errores restantes."
+      ],
+      "scope": [
+        "code/**",
+        "prompts/**",
+        "evaluation/**",
+        "tests/**",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P1",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "name": "evidence_and_risk_rules",
+      "title": "Suficiencia de evidencia y risk flags",
+      "description": "Implementar reglas deterministas para evidence_standard_met, valid_image y risk_flags visuales y de historial.",
+      "acceptance": [
+        "evidence_standard_met y evidence_standard_met_reason se derivan de evidence_requirements.csv y de la evidencia visual detectada.",
+        "Los risk_flags visuales cubren calidad, mismatch, autenticidad, objeto/parte incorrecta y dano no visible.",
+        "Los risk_flags de historial se derivan de history_flags, conteos historicos y last_90_days_claim_count.",
+        "valid_image es false cuando el set de imagenes no es usable para revision automatica y es coherente con risk_flags.",
+        "Los tests cubren reglas de evidencia, flags de historial y casos de imagen invalida.",
+        "Las metricas sobre sample para evidence_standard_met, risk_flags y valid_image quedan documentadas."
+      ],
+      "scope": [
+        "code/**",
+        "evaluation/**",
+        "tests/**",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P1",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "name": "evaluation_harness",
+      "title": "Harness de evaluacion reproducible",
+      "description": "Medir la solucion sobre sample_claims.csv campo a campo, con matriz de confusion de claim_status y registro de iteraciones.",
+      "acceptance": [
+        "evaluation/run_eval.py o equivalente ejecuta el pipeline sobre dataset/sample_claims.csv.",
+        "La evaluacion compara prediccion vs esperado campo a campo.",
+        "El reporte incluye accuracy de claim_status y matriz de confusion.",
+        "El reporte incluye accuracy o diagnostico por campo para el resto de columnas evaluables.",
+        "Existe una tabla o log de peores casos con hipotesis de error.",
+        "Cada iteracion de prompt o regla queda registrada con score antes/despues o razon del cambio."
+      ],
+      "scope": [
+        "code/**",
+        "evaluation/**",
+        "prompts/**",
+        "tests/**",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P1",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "name": "operational_report",
+      "title": "Analisis operativo de coste, latencia y rate limits",
+      "description": "Crear evaluation/evaluation_report.md con numeros reales del sample, extrapolacion al test y estrategia de coste, caching, throttling y retries.",
+      "acceptance": [
+        "El reporte indica numero aproximado de llamadas de modelo para sample y test.",
+        "El reporte indica tokens aproximados de entrada/salida y numero de imagenes procesadas.",
+        "El reporte estima coste del test completo con supuestos de pricing explicitos y formula visible.",
+        "El reporte mide o estima latencia/runtime con base en una corrida real.",
+        "El reporte describe TPM/RPM, concurrencia, batching/throttling, prompt caching y retry con backoff.",
+        "No quedan placeholders en evaluation/evaluation_report.md."
+      ],
+      "scope": [
+        "code/**",
+        "evaluation/**",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P1",
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "name": "final_submission_package",
+      "title": "Run completo y paquete de entrega",
+      "description": "Ejecutar el pipeline sobre claims.csv, producir output.csv validado y empaquetar code.zip, README, evaluation y transcript.",
+      "acceptance": [
+        "El pipeline procesa todas las filas de dataset/claims.csv y produce output.csv.",
+        "output.csv tiene una fila por cada fila de claims.csv.",
+        "output.csv contiene exactamente las 14 columnas requeridas en el orden estricto.",
+        "Todos los valores de output.csv pertenecen a los enums permitidos o a los formatos semicolon-separated requeridos.",
+        "code.zip incluye codigo ejecutable, prompts/configs, README y carpeta evaluation/.",
+        "La entrega contiene code.zip, output.csv y chat_transcript."
+      ],
+      "scope": [
+        "code/**",
+        "evaluation/**",
+        "prompts/**",
+        "README.md",
+        "output.csv",
+        "code.zip",
+        "chat_transcript",
+        "docs/**",
+        "spec/**",
+        "progress/**"
+      ],
+      "priority": "P0",
+      "sdd": true,
+      "status": "pending"
+    }
+  ]
+}
