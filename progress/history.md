@@ -9,3 +9,6 @@
 
 - Implementada capa determinista de IO para claims, historial, requisitos, imagenes y output CSV.
 - Verificaciones: `pytest` (12 passed).
+
+## 2026-06-19T11:31:49.419Z — #4 decision_logic_prompting → blocked
+- 3 intento(s) · agente claude
