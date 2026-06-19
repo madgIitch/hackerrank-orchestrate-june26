@@ -1,0 +1,16 @@
+# 2 · Capa de IO y datos — Tareas
+
+Checklist de implementación. El agente marca [x] al completar; los gates verifican.
+
+- [ ] (T1) Existe una capa de IO bajo `code/` que reutiliza `code/schema.py` como unica fuente de verdad para `OUTPUT_COLUMNS` y enums, sin duplicar contratos.  ↔ R1
+- [ ] (T2) `ClaimLoader` carga CSV UTF-8 con `csv.DictReader`, valida columnas requeridas `user_id`, `image_paths`, `user_claim` y `claim_object`, parsea `image_paths` separados por punto y coma recortando espacios y descartando segmentos vacios, deriva cada `image_id` desde el filename sin extension, preserva el orden de filas y no deduplica claims ni imagenes.  ↔ R2
+- [ ] (T3) El enriquecimiento une `user_history` por `user_id` y representa usuarios sin historial como `UserHistory(user_id=<claim user_id>, past_claim_count=0, accept_claim=0, manual_review_claim=0, rejected_claim=0, last_90_days_claim_count=0, history_flags="none", history_summary="No history available")`.  ↔ R3
+- [ ] (T4) `EvidenceRequirements.lookup` recibe `claim_object` e `issue_family` normalizada, o usa `issue_family_for_issue_type(issue_type)` con el mapeo aprobado, y aplica precedencia exacta: objeto+familia, all+familia, objeto+general, all+general; multiples coincidencias del mismo nivel se devuelven en orden CSV.  ↔ R4
+- [ ] (T5) Cuando no hay requisito coincidente, `EvidenceRequirements` devuelve `EvidenceLookupResult(requirements=[], matched_rule="none")` sin fallar.  ↔ R5
+- [ ] (T6) `ImageLoader` resuelve rutas relativas contra `dataset/`, falla si la imagen no existe, y devuelve `ImagePayload(image_id, source_path, media_type, width, height, base64_data, resized, original_width, original_height, byte_size)` con base64 crudo, no data URL.  ↔ R6
+- [ ] (T7) `ImageLoader` usa `max_dimension=1024`; si la imagen no supera ese limite conserva bytes/formato originales, y si lo supera redimensiona preservando aspect ratio, convierte a JPEG RGB quality=85, y reporta width/height normalizados mas original_width/original_height.  ↔ R7
+- [ ] (T8) `OutputWriter` escribe CSV UTF-8 con cabecera y exactamente las 14 columnas de `OUTPUT_COLUMNS` en orden estricto, preserva textos originales, serializa booleanos como `true`/`false`, y serializa solo `risk_flags` y `supporting_image_ids` como listas separadas por punto y coma.  ↔ R8
+- [ ] (T9) `OutputWriter` falla en errores estructurales (`claim_object` invalido, `object_part` incompatible con `claim_object`, columnas imposibles de completar) y corrige campos blandos: `claim_status` invalido -> `not_enough_information`, `issue_type` invalido -> `unknown`, `severity` invalido -> `unknown`, `risk_flags` invalidos se descartan con fallback `none`, booleanos invalidos -> `false`, `supporting_image_ids` vacio -> `none`.  ↔ R9
+- [ ] (T10) No se genera `output.csv` final de entrega en la raiz durante esta feature; cualquier salida de prueba se escribe en `tmp_path` o fixtures temporales de tests.  ↔ R10
+- [ ] (T11) Los tests pytest usan fixtures temporales autocontenidas para round-trip CSV, usuario sin historial, claims con una y multiples imagenes, lookup con fallback `all`, carga/normalizacion de imagen, enum invalido en `OutputWriter` e imagen faltante en `ImageLoader`, mas un smoke test con CSV/imagenes reales de `dataset/`.  ↔ R11
+- [ ] Tests que cubran los criterios de aceptación

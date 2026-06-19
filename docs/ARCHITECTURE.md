@@ -62,3 +62,26 @@ Preparar la estructura del proyecto, perfilar los CSV de sample, revisar imagene
 - **edge_cases:** image_paths multiples se separan por punto y coma, recortando espacios y descartando segmentos vacios accidentales; si no queda ninguna ruta, la fila del sample es invalida. image_id se deriva del nombre de archivo sin extension. Los valores categoricos se normalizan con trim y lowercase solo para validar/perfilar; el output debe usar exactamente los enums canonicos. claim_object solo permite car, laptop o package. object_part se valida contra el enum correspondiente al claim_object y, si no puede determinarse en fases posteriores, se usara unknown. No existe claim_id en el contrato y no debe asumirse. Filas duplicadas se reportan como hallazgo, pero no se deduplican automaticamente.
 - **ui_states:** No hay interfaz de usuario en esta feature; el resultado esperado son estructura de proyecto, scripts/notebooks, documentacion, reporte de perfilado y validaciones locales.
 
+<!-- harness:2 -->
+## 2 · Capa de IO y datos
+
+Construir loaders y writers deterministas para claims, historial, requisitos de evidencia, imagenes y salida CSV valida, sin depender todavia del modelo.
+
+### Scope aprobado
+
+  - `code/schema.py`
+  - `code/profile_data.py`
+  - `code/io_data.py`
+  - `tests/test_io_data.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/DECISIONS.md`
+  - `spec/**`
+  - `progress/**`
+
+### Contexto técnico
+
+- **data_model:** Los loaders exponen dataclasses tipadas propias del proyecto y solo serializan a dict en los bordes CSV. ClaimLoader devuelve ClaimRecord con user_id, image_paths normalizados, image_ids, user_claim y claim_object. El enriquecimiento devuelve EnrichedClaim con claim y history. El historial ausente se representa de forma determinista como UserHistory(user_id=<claim user_id>, past_claim_count=0, accept_claim=0, manual_review_claim=0, rejected_claim=0, last_90_days_claim_count=0, history_flags="none", history_summary="No history available").
+- **external_contracts:** ImageLoader devuelve ImagePayload con image_id, source_path, media_type, width, height, base64_data, resized, original_width, original_height y byte_size. El payload no es data URL: usa base64 crudo y media_type separado. max_dimension=1024. Si ancho y alto son <= 1024, no reescala y conserva bytes/formato originales. Si alguna dimension supera 1024, reescala manteniendo aspect ratio, convierte a JPEG RGB quality=85 y media_type="image/jpeg". Las rutas relativas se resuelven contra dataset/. No hay llamadas a modelo ni red.
+- **edge_cases:** EvidenceRequirements.lookup recibe claim_object y una issue_family normalizada por el caller. En esta feature no se infiere familia desde texto libre, salvo helper permitido issue_family_for_issue_type(issue_type) con mapeo inicial: dent/scratch -> "dent or scratch"; crack/glass_shatter/broken_part/missing_part -> "crack, broken, or missing part"; torn_packaging/crushed_packaging -> "torn or crushed packaging"; water_damage/stain -> "water damage or stain"; none/unknown -> "general claim review". Precedencia: 1) claim_object exacto y applies_to exacto; 2) claim_object=all y applies_to exacto; 3) claim_object exacto y applies_to="general claim review"; 4) claim_object=all y applies_to="general claim review". Multiples coincidencias en el mismo nivel se devuelven todas en orden original del CSV.
+- **ui_states:** No hay UI para esta feature; es capa de IO/datos con tests automatizados.
+
