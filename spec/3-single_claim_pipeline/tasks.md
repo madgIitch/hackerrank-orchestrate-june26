@@ -1,0 +1,13 @@
+# 3 · Pipeline vertical de una reclamacion — Tareas
+
+Checklist de implementación. El agente marca [x] al completar; los gates verifican.
+
+- [ ] (T1) Existe un archivo de system prompt (ej. prompts/system_prompt.txt) que incluye el esquema JSON esperado con todos los campos, los enums canonicos de schema.py como fuente de verdad, y los requisitos de evidencia relevantes al claim_object.  ↔ R1
+- [ ] (T2) El prompt de usuario se construye pasando las imagenes codificadas en base64 (via ImageLoader), el transcript de user_claim y el claim_object de un unico ClaimRecord; no contiene datos de otras claims.  ↔ R2
+- [ ] (T3) La llamada al modelo usa Gemini a traves de ModelClient, lee GEMINI_API_KEY y GEMINI_MODEL desde variables de entorno, y solicita JSON estricto con el mecanismo nativo de Gemini (response MIME JSON o equivalente soportado por el SDK); la respuesta procesada no contiene markdown, prefijos ni texto fuera del objeto JSON.  ↔ R3
+- [ ] (T4) Un parser/validador recibe el string JSON del modelo y devuelve un dict con exactamente los campos del contrato de salida; cualquier valor ausente o fuera del enum correspondiente se degrada a unknown, none o el fallback especificado en schema.py, sin excepcion.  ↔ R4
+- [ ] (T5) Si el modelo devuelve una respuesta no parseable como JSON o la llamada falla, el pipeline no omite la fila ni aborta el batch: devuelve una fila fallback valida con evidence_standard_met=false, risk_flags=manual_review_required, issue_type=unknown, object_part=unknown, claim_status=not_enough_information, supporting_image_ids=none, valid_image=false y severity=unknown, y registra el error sin secretos.  ↔ R5
+- [ ] (T6) Ejecutar el pipeline sobre un ClaimRecord de tipo car, uno de tipo laptop y uno de tipo package produce tres filas; cada fila pasa OutputWriter.validate_row() sin error. Esta feature no escribe output.csv en la raiz; cualquier escritura CSV requiere un path explicito y los tests usan tmp_path.  ↔ R6
+- [ ] (T7) Las variables de entorno requeridas (GEMINI_API_KEY, GEMINI_MODEL) estan documentadas en README o en un .env.example; no aparecen secretos en ningun archivo versionado.  ↔ R7
+- [ ] (T8) Los tests del pipeline son ejecutables con pytest y son deterministas por defecto usando un mock del modelo, sin credenciales ni coste; cubren al menos: respuesta valida del modelo -> fila completa, valor de enum invalido -> degradacion correcta, falla de llamada al modelo -> fila fallback, imagen faltante/parcial -> manual_review_required. Puede existir un test real opcional contra Gemini, saltado salvo que RUN_MODEL_TESTS=1 y GEMINI_API_KEY esten definidos.  ↔ R8
+- [ ] Tests que cubran los criterios de aceptación

@@ -85,3 +85,28 @@ Construir loaders y writers deterministas para claims, historial, requisitos de 
 - **edge_cases:** EvidenceRequirements.lookup recibe claim_object y una issue_family normalizada por el caller. En esta feature no se infiere familia desde texto libre, salvo helper permitido issue_family_for_issue_type(issue_type) con mapeo inicial: dent/scratch -> "dent or scratch"; crack/glass_shatter/broken_part/missing_part -> "crack, broken, or missing part"; torn_packaging/crushed_packaging -> "torn or crushed packaging"; water_damage/stain -> "water damage or stain"; none/unknown -> "general claim review". Precedencia: 1) claim_object exacto y applies_to exacto; 2) claim_object=all y applies_to exacto; 3) claim_object exacto y applies_to="general claim review"; 4) claim_object=all y applies_to="general claim review". Multiples coincidencias en el mismo nivel se devuelven todas en orden original del CSV.
 - **ui_states:** No hay UI para esta feature; es capa de IO/datos con tests automatizados.
 
+<!-- harness:3 -->
+## 3 · Pipeline vertical de una reclamacion
+
+Procesar una claim real de punta a punta mediante analisis multimodal, salida JSON estricta, validacion y fila de output valida.
+
+### Scope aprobado
+
+  - `code/pipeline.py`
+  - `code/prompt_builder.py`
+  - `code/model_client.py`
+  - `code/parser_validator.py`
+  - `prompts/system_prompt.txt`
+  - `tests/test_pipeline.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/DECISIONS.md`
+  - `spec/**`
+  - `progress/**`
+
+### Contexto técnico
+
+- **data_model:** El modelo produce un JSON candidato con exactamente 10 campos de decision: evidence_standard_met, evidence_standard_met_reason, risk_flags, issue_type, object_part, claim_status, claim_status_justification, supporting_image_ids, valid_image, severity. Los campos de entrada user_id, image_paths, user_claim y claim_object se preservan desde ClaimRecord sin pasar por el modelo. Normalizacion via schema.py/OutputWriter: enums invalidos a unknown/none/not_enough_information segun el campo, booleanos invalidos a false, listas invalidas filtradas.
+- **external_contracts:** Gemini por defecto (coste), capa ModelClient aislada y configurable por env vars. GEMINI_API_KEY para la key, GEMINI_MODEL para el modelo con default Gemini Flash documentado en README. JSON estricto forzado con mecanismo nativo del proveedor. Transcript proviene del campo user_claim de ClaimRecord; no hay archivo separado.
+- **edge_cases:** Fallo parcial de imagenes: continuar con las restantes, marcar manual_review_required en risk_flags, reflejar evidencia parcial en evidence_standard_met_reason y claim_status_justification; si la imagen faltante impide verificar, claim_status=not_enough_information y evidence_standard_met=false. Sin imagenes usables: fila fallback con valid_image=false, evidence_standard_met=false, risk_flags=manual_review_required, supporting_image_ids=none, claim_status=not_enough_information.
+- **ui_states:** Sin UI. Salida es OutputRow/dict validado por claim. Coherente con el resto del proyecto.
+

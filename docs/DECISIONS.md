@@ -35,3 +35,16 @@ Decisiones registradas:
 - **tests:** Los tests principales usan fixtures temporales autocontenidas en tmp_path para fijar casos de borde sin depender de cambios futuros del dataset. Debe mantenerse al menos un smoke test con CSV/imagenes reales de dataset/. Debe incluirse un caso explicito de enum invalido para verificar la politica de OutputWriter y un caso de imagen faltante para verificar fail-fast de ImageLoader.
 
 Consecuencia: futuras features deben respetar este contrato salvo nuevo ADR.
+
+<!-- harness:3 -->
+## 2026-06-19 · 3 aprobado
+
+Contexto: se aprobó el spec `3` (Pipeline vertical de una reclamacion).
+
+Decisiones registradas:
+
+- **auth_secrets:** Credenciales solo desde variables de entorno (GEMINI_API_KEY, GEMINI_MODEL), nunca en el repo. Documentadas en README y .env.example.
+- **rollback_compat:** El pipeline no escribe output.csv en la raiz. Devuelve OutputRow/dict validado por claim. Persistencia solo mediante path explicito pasado por parametro o tmp_path en tests. Generacion de output.csv final reservada para final_submission_package.
+- **tests:** Tests unitarios deterministas con mock del modelo, sin credenciales ni coste en pytest/CI. Test de integracion real opcional, saltado por defecto, solo corre si RUN_MODEL_TESTS=1 y GEMINI_API_KEY definidos; no bloquea CI. Fixtures: car/laptop/package con respuesta valida, JSON no parseable/fallo de llamada, valores invalidos degradados, imagen faltante/parcial.
+
+Consecuencia: futuras features deben respetar este contrato salvo nuevo ADR.
