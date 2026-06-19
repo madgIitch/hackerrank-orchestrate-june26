@@ -110,3 +110,31 @@ Procesar una claim real de punta a punta mediante analisis multimodal, salida JS
 - **edge_cases:** Fallo parcial de imagenes: continuar con las restantes, marcar manual_review_required en risk_flags, reflejar evidencia parcial en evidence_standard_met_reason y claim_status_justification; si la imagen faltante impide verificar, claim_status=not_enough_information y evidence_standard_met=false. Sin imagenes usables: fila fallback con valid_image=false, evidence_standard_met=false, risk_flags=manual_review_required, supporting_image_ids=none, claim_status=not_enough_information.
 - **ui_states:** Sin UI. Salida es OutputRow/dict validado por claim. Coherente con el resto del proyecto.
 
+<!-- harness:4 -->
+## 4 · Prompting y logica de decision
+
+Mejorar la calidad de las decisiones para issue_type, object_part, supporting_image_ids, severity y claim_status, priorizando evidencia visual sobre historial.
+
+### Scope aprobado
+
+  - `prompts/system_prompt.txt`
+  - `prompts/system_prompt_v2.txt`
+  - `code/prompt_builder.py`
+  - `code/parser_validator.py`
+  - `code/pipeline.py`
+  - `code/evaluation/main.py`
+  - `evaluation/evaluation_report.md`
+  - `tests/test_pipeline.py`
+  - `tests/test_parser_validator.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/DECISIONS.md`
+  - `spec/**`
+  - `progress/**`
+
+### Contexto técnico
+
+- **data_model:** PROMPT_VERSION='v2' como constante en código; el pipeline registra la versión en PipelineLog por ejecución. El prompt mejorado vive en prompts/system_prompt_v2.txt; prompts/system_prompt.txt se preserva sin modificar como baseline de feature 3. La versión NO se añade al output.csv (contrato de 14 columnas fijo); evaluation/evaluation_report.md debe indicar prompt_version tanto para el baseline v1 como para la estrategia v2.
+- **external_contracts:** El prompt mejorado se guarda en prompts/system_prompt_v2.txt y se selecciona vía constante PROMPT_VERSION='v2' o parámetro en el prompt builder; v2 es el default del pipeline tras esta feature. prompts/system_prompt.txt se conserva sin reemplazar para reproducir el baseline v1. Evaluación y producción usan la misma selección por defecto; los scripts de evaluación pueden recibir versión explícita para correr comparativas.
+- **edge_cases:** Flujo de dos pasadas máximo. Pasada 1: extracción/triage multimodal corto para identificar claim normalizada, issue_type candidato, object_part candidato, observaciones visuales e image_ids relevantes; con ese resultado se buscan los evidence_requirements exactos. Pasada 2: decisión final con transcript, imágenes, resumen de pasada 1, requisitos exactos e historial. Si la pasada 1 falla o devuelve valores inutilizables, se cae a requisitos generales y la pasada 2 debe poder producir not_enough_information. Máximo 2 llamadas por claim. El hardcode de issue_family_for_issue_type('unknown') se elimina; el flujo de dos pasadas es el mecanismo documentado en DECISIONS.md.
+- **ui_states:** No hay UI. El output sigue siendo output.csv y evaluation/evaluation_report.md. Las justificaciones son campos de texto en el CSV.
+
