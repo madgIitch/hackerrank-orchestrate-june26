@@ -14,7 +14,7 @@ from io_data import ClaimRecord, EvidenceRequirements, ImageLoader, OutputWriter
 from model_client import GeminiModelClient, ModelClientError  # noqa: E402
 from parser_validator import parse_and_validate_output  # noqa: E402
 from pipeline import SingleClaimPipeline  # noqa: E402
-from prompt_builder import build_user_prompt  # noqa: E402
+from prompt_builder import build_user_prompt, PROMPT_VERSION  # noqa: E402
 
 
 class FakeModelClient:
@@ -65,6 +65,17 @@ def history(user_id="user_car") -> UserHistory:
         last_90_days_claim_count=0,
         history_flags="none",
         history_summary="No history available",
+    )
+
+
+def valid_triage_json(object_part="door", issue_type="dent", image_id="img_1") -> str:
+    return (
+        "{"
+        f'"issue_type": "{issue_type}",'
+        f'"object_part": "{object_part}",'
+        f'"relevant_image_ids": ["{image_id}"],'
+        '"visual_summary": "Visible damage on the surface."'
+        "}"
     )
 
 
@@ -123,7 +134,12 @@ def test_build_user_prompt_contains_one_claim_and_loaded_images(tmp_path):
 
 
 def test_pipeline_produces_rows_for_car_laptop_and_package(pipeline_factory):
-    pipeline, dataset_dir = pipeline_factory([valid_model_json("door"), valid_model_json("screen"), valid_model_json("box")])
+    # Two passes per claim: triage + decision
+    responses = []
+    for obj, part in [("car", "door"), ("laptop", "screen"), ("package", "box")]:
+        responses.append(valid_triage_json(object_part=part))
+        responses.append(valid_model_json(part))
+    pipeline, dataset_dir = pipeline_factory(responses)
     for obj in ["car", "laptop", "package"]:
         make_image(dataset_dir, f"images/sample/{obj}/img_1.jpg")
 
@@ -169,7 +185,8 @@ def test_parser_degrades_invalid_enums_to_soft_fallbacks():
 
 
 def test_model_failure_returns_valid_fallback_row(pipeline_factory):
-    pipeline, dataset_dir = pipeline_factory([ModelClientError("timeout")])
+    # Both triage and decision fail → fallback row
+    pipeline, dataset_dir = pipeline_factory([ModelClientError("timeout"), ModelClientError("timeout")])
     make_image(dataset_dir, "images/sample/car/img_1.jpg")
 
     row = pipeline.process_claim(claim("car"), history("user_car"))
@@ -183,7 +200,8 @@ def test_model_failure_returns_valid_fallback_row(pipeline_factory):
 
 
 def test_partial_missing_image_continues_and_marks_manual_review(pipeline_factory):
-    pipeline, dataset_dir = pipeline_factory([valid_model_json("door")])
+    # Two passes: triage + decision
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), valid_model_json("door")])
     make_image(dataset_dir, "images/sample/car/img_1.jpg")
     item = claim("car", ["images/sample/car/img_1.jpg", "images/sample/car/missing.jpg"])
 
@@ -196,7 +214,7 @@ def test_partial_missing_image_continues_and_marks_manual_review(pipeline_factor
 
 
 def test_no_usable_images_returns_fallback_without_model_call(pipeline_factory):
-    pipeline, _dataset_dir = pipeline_factory([valid_model_json("door")])
+    pipeline, _dataset_dir = pipeline_factory([valid_triage_json("door"), valid_model_json("door")])
 
     row = pipeline.process_claim(claim("car", ["images/sample/car/missing.jpg"]), history("user_car"))
 
@@ -207,7 +225,7 @@ def test_no_usable_images_returns_fallback_without_model_call(pipeline_factory):
 
 
 def test_write_rows_requires_explicit_path_and_uses_tmp_path(pipeline_factory, tmp_path):
-    pipeline, dataset_dir = pipeline_factory([valid_model_json("door")])
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), valid_model_json("door")])
     make_image(dataset_dir, "images/sample/car/img_1.jpg")
     row = pipeline.process_claim(claim("car"), history("user_car"))
     output_path = tmp_path / "staging.csv"
@@ -223,3 +241,187 @@ def test_gemini_client_requires_api_key(monkeypatch):
 
     with pytest.raises(ModelClientError):
         GeminiModelClient()
+
+
+# ── New tests for feature 4 post-processing behaviors ─────────────────────────
+
+def test_supported_with_evidence_false_forces_not_enough_information(pipeline_factory):
+    """evidence_standard_met=false must override claim_status=supported → not_enough_information."""
+    decision_json = (
+        "{"
+        '"evidence_standard_met": false,'
+        '"evidence_standard_met_reason": "Image too blurry.",'
+        '"risk_flags": ["blurry_image"],'
+        '"issue_type": "dent",'
+        '"object_part": "door",'
+        '"claim_status": "supported",'
+        '"claim_status_justification": "img_1 shows damage.",'
+        '"supporting_image_ids": ["img_1"],'
+        '"valid_image": false,'
+        '"severity": "low"'
+        "}"
+    )
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), decision_json])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+
+    row = pipeline.process_claim(claim("car"), history("user_car"))
+
+    assert row["claim_status"] == "not_enough_information"
+    assert row["evidence_standard_met"] == "false"
+    assert row["supporting_image_ids"] == "none"
+
+
+def test_contradicted_with_evidence_false_forces_not_enough_information(pipeline_factory):
+    """evidence_standard_met=false must override claim_status=contradicted → not_enough_information."""
+    decision_json = (
+        "{"
+        '"evidence_standard_met": false,'
+        '"evidence_standard_met_reason": "Image does not meet requirements.",'
+        '"risk_flags": ["wrong_angle"],'
+        '"issue_type": "none",'
+        '"object_part": "door",'
+        '"claim_status": "contradicted",'
+        '"claim_status_justification": "img_1 shows no damage.",'
+        '"supporting_image_ids": ["img_1"],'
+        '"valid_image": false,'
+        '"severity": "none"'
+        "}"
+    )
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), decision_json])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+
+    row = pipeline.process_claim(claim("car"), history("user_car"))
+
+    assert row["claim_status"] == "not_enough_information"
+    assert row["evidence_standard_met"] == "false"
+    assert row["supporting_image_ids"] == "none"
+
+
+def test_not_enough_information_with_evidence_true_is_preserved(pipeline_factory):
+    """not_enough_information with evidence_standard_met=true must remain unchanged."""
+    decision_json = (
+        "{"
+        '"evidence_standard_met": true,'
+        '"evidence_standard_met_reason": "Image is clear.",'
+        '"risk_flags": ["none"],'
+        '"issue_type": "unknown",'
+        '"object_part": "unknown",'
+        '"claim_status": "not_enough_information",'
+        '"claim_status_justification": "Cannot determine damage area.",'
+        '"supporting_image_ids": ["none"],'
+        '"valid_image": true,'
+        '"severity": "unknown"'
+        "}"
+    )
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), decision_json])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+
+    row = pipeline.process_claim(claim("car"), history("user_car"))
+
+    assert row["claim_status"] == "not_enough_information"
+    assert row["evidence_standard_met"] == "true"
+
+
+def test_foreign_image_ids_discarded_from_supporting(pipeline_factory):
+    """Image IDs not belonging to the claim must be removed from supporting_image_ids."""
+    decision_json = (
+        "{"
+        '"evidence_standard_met": true,'
+        '"evidence_standard_met_reason": "Clear images.",'
+        '"risk_flags": ["none"],'
+        '"issue_type": "dent",'
+        '"object_part": "door",'
+        '"claim_status": "supported",'
+        '"claim_status_justification": "img_1 and foreign_img show damage.",'
+        '"supporting_image_ids": ["img_1", "foreign_img", "other_claim_img"],'
+        '"valid_image": true,'
+        '"severity": "low"'
+        "}"
+    )
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), decision_json])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+
+    row = pipeline.process_claim(claim("car"), history("user_car"))
+
+    assert "foreign_img" not in row["supporting_image_ids"]
+    assert "other_claim_img" not in row["supporting_image_ids"]
+    assert "img_1" in row["supporting_image_ids"]
+    assert row["claim_status"] == "supported"
+
+
+def test_supported_with_all_foreign_ids_becomes_not_enough_information(pipeline_factory):
+    """supported with only foreign image IDs → not_enough_information after filtering."""
+    decision_json = (
+        "{"
+        '"evidence_standard_met": true,'
+        '"evidence_standard_met_reason": "Clear images.",'
+        '"risk_flags": ["none"],'
+        '"issue_type": "dent",'
+        '"object_part": "door",'
+        '"claim_status": "supported",'
+        '"claim_status_justification": "foreign_img shows damage.",'
+        '"supporting_image_ids": ["foreign_img", "other_img"],'
+        '"valid_image": true,'
+        '"severity": "low"'
+        "}"
+    )
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), decision_json])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+
+    row = pipeline.process_claim(claim("car"), history("user_car"))
+
+    assert row["claim_status"] == "not_enough_information"
+    assert row["supporting_image_ids"] == "none"
+
+
+def test_history_cannot_elevate_not_enough_information(pipeline_factory):
+    """High-risk history adds user_history_risk flag but must not change claim_status."""
+    decision_json = (
+        "{"
+        '"evidence_standard_met": false,'
+        '"evidence_standard_met_reason": "Insufficient evidence.",'
+        '"risk_flags": ["none"],'
+        '"issue_type": "unknown",'
+        '"object_part": "unknown",'
+        '"claim_status": "not_enough_information",'
+        '"claim_status_justification": "Cannot verify.",'
+        '"supporting_image_ids": ["none"],'
+        '"valid_image": false,'
+        '"severity": "unknown"'
+        "}"
+    )
+    pipeline, dataset_dir = pipeline_factory([valid_triage_json("door"), decision_json])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+    risky_history = UserHistory(
+        user_id="user_car",
+        past_claim_count=5,
+        accept_claim=0,
+        manual_review_claim=2,
+        rejected_claim=3,
+        last_90_days_claim_count=4,
+        history_flags="high_risk",
+        history_summary="Multiple rejected claims.",
+    )
+
+    row = pipeline.process_claim(claim("car"), risky_history)
+
+    assert row["claim_status"] == "not_enough_information"
+    assert "user_history_risk" in row["risk_flags"]
+
+
+def test_prompt_version_recorded_in_pipeline_log(pipeline_factory):
+    """Pipeline log must record prompt_version."""
+    pipeline, _dataset_dir = pipeline_factory([])
+
+    assert pipeline.log.prompt_version == PROMPT_VERSION
+
+
+def test_triage_failure_falls_back_to_general_requirements(pipeline_factory):
+    """If triage fails, pipeline uses general requirements and proceeds to decision pass."""
+    pipeline, dataset_dir = pipeline_factory([ModelClientError("triage_down"), valid_model_json("door")])
+    make_image(dataset_dir, "images/sample/car/img_1.jpg")
+
+    row = pipeline.process_claim(claim("car"), history("user_car"))
+
+    assert row["claim_status"] in ("supported", "not_enough_information", "contradicted")
+    assert pipeline.log.errors  # triage error should be logged

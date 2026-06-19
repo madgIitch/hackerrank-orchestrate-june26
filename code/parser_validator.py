@@ -60,6 +60,30 @@ def validate_output_row(row: dict[str, Any]) -> dict[str, str]:
     return OutputWriter.__new__(OutputWriter).normalize_row(row)
 
 
+def apply_evidence_precedence(row: dict[str, str]) -> dict[str, str]:
+    """Force not_enough_information when evidence_standard_met is false."""
+    if row.get("evidence_standard_met") == "false":
+        row["claim_status"] = "not_enough_information"
+        row["supporting_image_ids"] = "none"
+    return row
+
+
+def filter_supporting_image_ids(row: dict[str, str], valid_ids: set[str]) -> dict[str, str]:
+    """Remove foreign image IDs; force not_enough_information if none remain for supported/contradicted."""
+    raw = row.get("supporting_image_ids", "none")
+    if raw == "none":
+        return row
+    ids = [id_.strip() for id_ in raw.split(";") if id_.strip() and id_.strip() != "none"]
+    filtered = [id_ for id_ in ids if id_ in valid_ids]
+    if not filtered:
+        row["supporting_image_ids"] = "none"
+        if row.get("claim_status") in ("supported", "contradicted"):
+            row["claim_status"] = "not_enough_information"
+    else:
+        row["supporting_image_ids"] = ";".join(filtered)
+    return row
+
+
 def parse_and_validate_output(base_row: dict[str, Any], raw_json: str) -> dict[str, str]:
     try:
         decision = parse_model_json(raw_json)
