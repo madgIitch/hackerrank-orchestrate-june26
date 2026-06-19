@@ -1,2 +1,3 @@
 .harness/harness-state.json
 .harness/interviews/
+.env
